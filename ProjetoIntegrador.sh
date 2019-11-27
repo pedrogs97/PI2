@@ -82,7 +82,7 @@ CreateSquidFile(){
 	http_access allow localhost
 
 	# And finally deny all other access to this proxy
-	http_access deny all
+	http_access allow all
 
 	# Squid normally listens to port 3128
 	http_port 3128
@@ -134,7 +134,7 @@ InstallPackages(){
 			--msgbox 'Squid instalado com sucesso!'  \
 			0 0
 		clear
-		InputACL
+		#InputACL
 		CreateSquidFile
 		ConfigSquid
 	else
@@ -143,7 +143,7 @@ InstallPackages(){
 			--msgbox 'Squid já foi instalado.'  \
 			0 0
 		clear
-		InputACL
+		#InputACL
 		CreateSquidFile
 		ConfigSquid
 	fi
@@ -218,8 +218,8 @@ Menu_Instalar(){
 			--clear \
 			--cancel-label "Voltar" \
 			--menu "Selecione uma opção:" $HEIGHT $WIDTH 4 \
-			"1" "Instalar squid3" \
-			"2" "Instalar iptables" \
+			"1" "Instalar MySQL Server" \
+			"2" "Instalar UnRAR" \
 			"3" "Instalar tcpdump" \
 			"4" "Instalar nmap" \
 			"5" "Instalar todos acima" \
@@ -244,35 +244,58 @@ Menu_Instalar(){
 				return
 				;;
 			1 )
-			if ! sudo apt-get install squid3 -y
-				display_result "Squid3 Instalado com sucesso"
-				clear
-			then
-				clear  
+				STATUS_MYSQL="$(dpkg -s mysql-server | grep -i status)"
+				if [ ! "Status: install ok installed" == "$STATUS" ]
+				then
+					`sudo apt install -y mysql-server`
+					dialog  \
+						--title 'Instalação'    \
+						--msgbox 'MySQL Server instalado com sucesso!'  \
+						0 0
+					clear
+				else
+					dialog  \
+						--title 'Instalação'    \
+						--msgbox 'MySQL Server já foi instalado.'  \
+						0 0
+					clear
+				fi
+				;;
+			2 ) 
+				STATUS_MYSQL="$(dpkg -s unrar | grep -i status)"
+				if [ ! "Status: install ok installed" == "$STATUS" ]
+				then
+					`sudo apt install -y unrar`
+					dialog  \
+						--title 'Instalação'    \
+						--msgbox 'UnRAR Server instalado com sucesso!'  \
+						0 0
+					clear
+				else
+					dialog  \
+						--title 'Instalação'    \
+						--msgbox 'UnRAR Server já foi instalado.'  \
+						0 0
+					clear
 				fi
 			;;
-			2 ) 
-			if ! sudo apt-get install iptables -y
-					display_result "Iptables Instalado com sucesso"
-				clear
-			then
-				clear
-			fi	
-			;;
 			3 ) 
-			if ! sudo apt-get install tcpdump -y
-				display_result "Tcpdump Instalado com sucesso"
-			then
-				clear
-			fi	
-			;;	
-
-				4)  
-			if ! sudo apt-get install nmap -y
-				display_result "Nmap Instalado com sucesso"
-			then
-				clear
-			fi	
+				STATUS_MYSQL="$(dpkg -s unrar | grep -i status)"
+				if [ ! "Status: install ok installed" == "$STATUS" ]
+				then
+					`sudo apt install -y unrar`
+					dialog  \
+						--title 'Instalação'    \
+						--msgbox 'UnRAR Server instalado com sucesso!'  \
+						0 0
+					clear
+				else
+					dialog  \
+						--title 'Instalação'    \
+						--	msgbox 'UnRAR Server já foi instalado.'  \
+						0 0
+					clear
+				fi	
 			;;
 
 			5 )
@@ -286,7 +309,7 @@ Menu_Instalar(){
 		done			
 }
 
-Menu_ConfiguracaoServidor(){
+Menu_ConfigurarServidor(){
 	while true; do
 		exec 3>&1
 		selection=$(dialog \
@@ -298,7 +321,6 @@ Menu_ConfiguracaoServidor(){
 			"1" "Configuração de Proxy" \
 			"2" "Configuração de Firewall" \
 			"3" "Capturar Trafego" \
-			"4" "Redirecionar trafego de rede" \
 			2>&1 1>&3)
 		exit_status=$?
 		exec 3>&-
@@ -328,7 +350,7 @@ Menu_ConfiguracaoServidor(){
 					0 0
 				;;
 			2 ) 
-			
+				#  iptables -t nat -A PREROUTING -s SUA_REDE_LOCAL/MASCARA -p tcp --dport 80 -j REDIRECT --to-port 3128
 				dialog 
 					--title 'Aviso' \
 					--textbox "Firewall configurado com sucesso."\
@@ -342,19 +364,12 @@ Menu_ConfiguracaoServidor(){
 						--textbox ${TCP_PATH} \
 						0 0 
 				fi
-			;;	  
-			4 )
-			if ! iptables -t nat -A PREROUTING -s SUA_REDE_LOCAL/MASCARA -p tcp --dport 80 -j REDIRECT --to-port 3128
-				clear
-					then
-				clear  
-				fi
-			;;
+			;;	
 		esac
 		done			
 }
 
-Menu_Configuracao(){
+Menu_InfoComputador(){
 	while true; do
 		exec 3>&1
 		selection=$(dialog \
@@ -366,7 +381,7 @@ Menu_Configuracao(){
 			"1" "Informações da CPU" \
 			"2" "Informações da Memoria" \
 			"3" "Informações do Barramento" \
-				"4" "Informações da GPU" \
+			"4" "Informações da GPU" \
 			2>&1 1>&3)
 		exit_status=$?
 		exec 3>&-
@@ -434,15 +449,18 @@ Menu_Configuracao(){
 				#Deixar mais legível o lsusb
 				echo `lsusb -v | egrep '\<(Bus|iProduct|bDeviceClass|bDeviceProtocol)'` >> ${BAR_PATH}
 				#Detalhes sobre IRQS
-				`lsdev | grep -iF "acpi" ${QLQ_PATH}`
-				`cat ${QLQ_PATH} >> ${BAR_PATH}`
-				echo `lsdev | grep -i 'ohci_hcd:usb1'` >> ${BAR_PATH}
-				echo `lsdev | grep -i 'vboxvideo'` >> ${BAR_PATH}
-				echo `lsdev | grep -i 'vboxguest'` >> ${BAR_PATH}
-				echo `lsdev | grep -i 'enp0s3'` >> ${BAR_PATH}
-				dialog --title 'Barramento' \
-				--textbox ${BAR_PATH}\
-				0 0
+				echo 'Device  IRQ      Descrição:' >> ${BAR_PATH}
+				echo `lsdev | grep -i 'amdgpu'` >> ${BAR_PATH}
+				echo `lsdev | grep -i 'ath9k'` >> ${BAR_PATH}
+				echo `lsdev | grep -i 'rtc0'` >> ${BAR_PATH}
+				echo `lsdev | grep -i 'dmar0'` >> ${BAR_PATH}
+				echo `lsdev | grep -i 'dmar1'` >> ${BAR_PATH}
+				echo `lsdev | grep -i 'enp3s0'` >> ${BAR_PATH}
+				echo `lsdev | grep -i 'mei_me'` >> ${BAR_PATH}
+				dialog \
+					--title 'Barramento' \
+					--textbox ${BAR_PATH} \
+					0 0
 				;;	  
 			
 		esac
@@ -492,10 +510,10 @@ Menu_Inicial(){
 			dialog --title 'Informações' --infobox 'Buscando informações sobre a máquina...'\
 			0 0
 			sleep 2
-			Menu_Configuracao
+			Menu_InfoComputador
 			;;
 		2 ) 
-			Menu_ConfiguracaoServidor
+			Menu_ConfigurarServidor
 			;;
         3 ) 
 		  	Menu_Instalar
