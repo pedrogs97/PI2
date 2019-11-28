@@ -8,12 +8,14 @@ WIDTH=0
 BASE_PATH=$HOME
 FULL_PATH="${BASE_PATH}/pi/"
 CPU_PATH="${FULL_PATH}info"
+CPU_PATH_AUX="${FULL_PATH}info-aux"
 MEM_PATH="${FULL_PATH}mem"
 BAR_PATH="${FULL_PATH}bar"
 QLQ_PATH="${FULL_PATH}lsdev"
 TCP_PATH="${FULL_PATH}dump"
 SQUID_PATH="${FULL_PATH}squid-pi"
 BLOCK_SITES="/etc/squid/sites_proibidos"
+
 
 #----Criação de Arquivos----#
 CreateSquidFile(){
@@ -103,6 +105,69 @@ CreateSquidFile(){
 	# example pattern for deb packages
 	#refresh_pattern (\.deb|\.udeb)$   129600 100% 129600
 	refresh_pattern .		0	20%	4320" >> ${SQUID_PATH}
+}
+
+CreateCPUInfoFile(){
+	if [ -e ${CPU_PATH} ]
+	then
+		clear
+		rm ${CPU_PATH}
+	fi
+	mhz=$(cat /proc/cpuinfo | grep --max-count=4 -i 'cpu mhz' > ${CPU_PATH_AUX})
+	i=1
+	while IFS= read -r line
+	do
+		if [ -e ${CPU_PATH}${i} ]
+		then
+			`sudo rm ${CPU_PATH}${i}`
+		fi
+		echo ${line} >> ${CPU_PATH}${i}
+		i=$(( i+1 ))
+	done < ${CPU_PATH_AUX}
+
+	model=$(cat /proc/cpuinfo | grep --max-count=4 -i 'model name' > ${CPU_PATH_AUX})
+	i=1
+	while IFS= read -r line
+	do
+		echo ${line} >> ${CPU_PATH}${i}
+		i=$(( i+1 ))
+	done < ${CPU_PATH_AUX}
+
+	core=$(cat /proc/cpuinfo | grep --max-count=4 -i 'cpu cores' > ${CPU_PATH_AUX})
+	i=1
+	while IFS= read -r line
+	do
+		echo ${line} >> ${CPU_PATH}${i}
+		i=$(( i+1 ))
+	done < ${CPU_PATH_AUX}
+
+	id=$(cat /proc/cpuinfo | grep --max-count=4 -i 'vendor_id' > ${CPU_PATH_AUX})
+	i=1
+	while IFS= read -r line
+	do
+		echo ${line} >> ${CPU_PATH}${i}
+		i=$(( i+1 ))
+	done < ${CPU_PATH_AUX}
+
+	family=$(cat /proc/cpuinfo | grep --max-count=4 -i 'cpu family' > ${CPU_PATH_AUX})
+	i=1
+	while IFS= read -r line
+	do
+		echo ${line} >> ${CPU_PATH}${i}
+		i=$(( i+1 ))
+	done < ${CPU_PATH_AUX}
+	i=1
+	while true
+	do
+		if [ -e ${CPU_PATH}${i} ]
+		then
+			echo "CPU ${i}" >> ${CPU_PATH}
+			cat=$(cat ${CPU_PATH}${i} >> ${CPU_PATH})
+			i=$(( i+1 ))
+		else
+			break
+		fi
+	done
 }
 
 InputACL(){
@@ -209,20 +274,21 @@ ConfigSquid(){
 	fi
 }
 #----Menus---#
-Menu_Instalar(){
+Menu_Install(){
 	while true; do
+		STATUS_UNRAR="$(dpkg -s unrar | grep -i status)"
+		STATUS_VIM="$(dpkg -s vim| grep -i status)"
 		exec 3>&1
 		selection=$(dialog \
-			--backtitle "Instalação de Programas" \
+			--backtitle "Instalação/Desinstalação de Programas" \
 			--title "Programas" \
 			--clear \
 			--cancel-label "Voltar" \
 			--menu "Selecione uma opção:" $HEIGHT $WIDTH 4 \
-			"1" "Instalar MySQL Server" \
+			"1" "Instalar VIM" \
 			"2" "Instalar UnRAR" \
-			"3" "Instalar tcpdump" \
-			"4" "Instalar nmap" \
-			"5" "Instalar todos acima" \
+			"3" "Desinstalar VIM" \
+			"4" "Desinstalar UnRAR" \
 			2>&1 1>&3)
 		exit_status=$?
 		exec 3>&-
@@ -243,73 +309,89 @@ Menu_Instalar(){
 				echo "programa encerrado"
 				return
 				;;
-			1 )
-				STATUS_MYSQL="$(dpkg -s mysql-server | grep -i status)"
-				if [ ! "Status: install ok installed" == "$STATUS" ]
+			1 )	#Instalar vim
+				if [ ! "Status: install ok installed" == "$STATUS_VIM" ]
 				then
-					`sudo apt install -y mysql-server`
+					`sudo apt install -y vim`
+					clear
 					dialog  \
 						--title 'Instalação'    \
-						--msgbox 'MySQL Server instalado com sucesso!'  \
+						--msgbox 'VIM instalado com sucesso!'  \
 						0 0
 					clear
 				else
 					dialog  \
 						--title 'Instalação'    \
-						--msgbox 'MySQL Server já foi instalado.'  \
+						--msgbox 'VIM já foi instalado.'  \
 						0 0
 					clear
 				fi
 				;;
-			2 ) 
-				STATUS_MYSQL="$(dpkg -s unrar | grep -i status)"
-				if [ ! "Status: install ok installed" == "$STATUS" ]
+			
+			2 ) #Instalar unrar
+				if [ ! "Status: install ok installed" == "$STATUS_UNRAR" ]
 				then
 					`sudo apt install -y unrar`
+					clear
 					dialog  \
 						--title 'Instalação'    \
-						--msgbox 'UnRAR Server instalado com sucesso!'  \
+						--msgbox 'UnRAR instalado com sucesso!'  \
 						0 0
 					clear
 				else
 					dialog  \
 						--title 'Instalação'    \
-						--msgbox 'UnRAR Server já foi instalado.'  \
+						--msgbox 'UnRAR já foi instalado.'  \
 						0 0
 					clear
 				fi
-			;;
-			3 ) 
-				STATUS_MYSQL="$(dpkg -s unrar | grep -i status)"
-				if [ ! "Status: install ok installed" == "$STATUS" ]
+				;;
+			3 ) #Desinstalar vim
+				if [ "Status: install ok installed" == "$STATUS_VIM" ]
 				then
-					`sudo apt install -y unrar`
+					`sudo apt remove -y vim`
+					clear
+					`sudo apt autoremove -y`
+					clear
 					dialog  \
-						--title 'Instalação'    \
-						--msgbox 'UnRAR Server instalado com sucesso!'  \
+						--title 'Desinstalação'    \
+						--msgbox 'VIM desinstalado com sucesso!'  \
 						0 0
 					clear
 				else
 					dialog  \
-						--title 'Instalação'    \
-						--	msgbox 'UnRAR Server já foi instalado.'  \
+						--title 'Desinstalação'    \
+						--msgbox 'VIM não foi instalado.'  \
 						0 0
 					clear
 				fi	
-			;;
+				;;
 
-			5 )
-				if ! sudo apt-get install squid3 iptables tcpdump -y
-						display_result "squid3, iptables, tcpdump e nmap foram instalados com sucesso"
+			4 )	#Desinstalar unrar
+				if [ "Status: install ok installed" == "$STATUS_UNRAR" ]
 				then
-				clear
-			fi
-			;;
+					`sudo apt remove -y unrar`
+					clear
+					`sudo apt autoremove -y`
+					clear
+					dialog  \
+						--title 'Desinstalação'    \
+						--msgbox 'UnRAR desinstalado com sucesso!'  \
+						0 0
+					clear
+				else
+					dialog  \
+						--title 'Desinstalação'    \
+						--msgbox 'UnRAR não foi instalado.'  \
+						0 0
+					clear
+				fi		
+				;;
 			esac
 		done			
 }
 
-Menu_ConfigurarServidor(){
+Menu_ConfigServer(){
 	while true; do
 		exec 3>&1
 		selection=$(dialog \
@@ -369,7 +451,7 @@ Menu_ConfigurarServidor(){
 		done			
 }
 
-Menu_InfoComputador(){
+Menu_InfoComputer(){
 	while true; do
 		exec 3>&1
 		selection=$(dialog \
@@ -388,7 +470,7 @@ Menu_InfoComputador(){
 		case $exit_status in
 			$DIALOG_CANCEL)
 			echo "Inicio do Programa."
-			Menu_Inicial
+			Menu
 			exit
 			;;
 		$DIALOG_ESC)
@@ -399,24 +481,15 @@ Menu_InfoComputador(){
 		esac
 		case $selection in
 			0 )
-				Inicio_Programa
+				Menu
 				;;
 
 			1 )
-				if [ -e ${CPU_PATH} ]
-						then
-							clear
-							rm ${CPU_PATH}
-						fi
-						echo `cat /proc/cpuinfo | grep -i 'cpu mhz'` >> ${CPU_PATH}
-						echo `cat /proc/cpuinfo | grep -i 'model name'` >> ${CPU_PATH}
-						echo `cat /proc/cpuinfo | grep -i 'cpu cores'` >> ${CPU_PATH}
-						echo `cat /proc/cpuinfo | grep -i 'vendor_id'` >> ${CPU_PATH}
-						echo `cat /proc/cpuinfo | grep -i 'cpu family'` >> ${CPU_PATH}
-						dialog --title 'CPU' \
-							--textbox ${CPU_PATH} \
-						0 0
-						;;
+				CreateCPUInfoFile
+				dialog --title 'CPU' \
+					--textbox ${CPU_PATH} \
+				0 0
+				;;
 			2 ) 
 				if [ -e ${MEM_PATH} ]
 				then
@@ -467,7 +540,7 @@ Menu_InfoComputador(){
 		done			
 }
 
-Menu_Inicial(){
+Menu(){
 	if [ ! -d ${FULL_PATH} ]
 	then
 		clear
@@ -484,7 +557,7 @@ Menu_Inicial(){
 		--menu "Selecione uma opção:" $HEIGHT $WIDTH 4 \
 		"1" "Verificar especificações do computador." \
 		"2" "Opções do servidor." \
-        "3" "Instalar Programas." \
+        "3" "Instalar/Desinstalar Programas." \
 		2>&1 1>&3)
 	exit_status=$?
 	exec 3>&-
@@ -510,26 +583,26 @@ Menu_Inicial(){
 			dialog --title 'Informações' --infobox 'Buscando informações sobre a máquina...'\
 			0 0
 			sleep 2
-			Menu_InfoComputador
+			Menu_InfoComputer
 			;;
 		2 ) 
-			Menu_ConfigurarServidor
+			Menu_ConfigServer
 			;;
         3 ) 
-		  	Menu_Instalar
+		  	Menu_Install
 		   	;;
 		esac
     done		
 }
 #----Tela inicial----#
-Inicio_Programa(){
+Start_Program(){
 	dialog	\
 	--title 'ATENÇÂO!'	\
 	--yesno	'\nPara o funcionamento correto do programa é necessário a instalação de alguns programas e permissão de root.\nDeseja continuar?\n\n'	\
 	0 0 \
-	&& Menu_Inicial \
+	&& Menu \
 	|| clear
 	return
 }
 
-Inicio_Programa
+Start_Program
