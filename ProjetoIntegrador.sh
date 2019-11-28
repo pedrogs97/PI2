@@ -11,6 +11,7 @@ CPU_PATH="${FULL_PATH}info"
 CPU_PATH_AUX="${FULL_PATH}info-aux"
 MEM_PATH="${FULL_PATH}mem"
 BAR_PATH="${FULL_PATH}bar/"
+BAR_PLUS_PATH="${BAR_PATH}bar"
 USB_PATH="${BAR_PATH}usb"
 SATA_PATH="${BAR_PATH}sata"
 PCI_PATH="${BAR_PATH}pci"
@@ -480,13 +481,11 @@ Menu_InfoComputer(){
 		case $exit_status in
 			$DIALOG_CANCEL)
 			echo "Inicio do Programa."
-			Menu
-			exit
+			return
 			;;
 		$DIALOG_ESC)
 			clear
-			echo "programa abortado.">&2
-			exit 1
+			return
 			;;
 		esac
 		case $selection in
@@ -535,29 +534,37 @@ Menu_InfoComputer(){
 				`lspci | grep -i 'ethernet' > ${ETH_PATH}`
 				`lspci | grep -i 'VGA' > ${VGA_PATH}`
 				#Detalhes da Fabricação do Audio
-				`lspci -v | grep -i 'audio'` > ${AUDIO_PATH}
+				`lspci -v | grep -i 'audio' > ${AUDIO_PATH}` 
+
+				#Deixar mais legível o lsusb
+				`lsusb -v | egrep '\<(Bus|iProduct|bDeviceClass|bDeviceProtocol)' >> ${USB_PATH}`
+				#Detalhes sobre IRQS
+				echo 'Device		IRQ		I/O Port' > ${BAR_PLUS_PATH}
+				echo 'GPU:' >> ${BAR_PLUS_PATH}
+				`lsdev | grep -i 'amdgpu' >> ${BAR_PLUS_PATH}`
+				echo 'Rede Wireless:' >> ${BAR_PLUS_PATH}
+				`lsdev | grep -i 'ath9k' >> ${BAR_PLUS_PATH}` 
+				echo 'Realm Time Clock:' >> ${BAR_PLUS_PATH}
+				`lsdev | grep -i 'rtc0' >> ${BAR_PLUS_PATH}` 
+				echo 'DMA RAM:' >> ${BAR_PLUS_PATH}
+				`lsdev | grep -i 'dmar0' >> ${BAR_PLUS_PATH}`
+				`lsdev | grep -i 'dmar1' >> ${BAR_PLUS_PATH}`
+				echo 'Rede Wired:' >> ${BAR_PLUS_PATH}
+				`lsdev | grep -i 'enp3s0' >> ${BAR_PLUS_PATH}` 
+				echo 'Módulo de configuração do kernel:' >> ${BAR_PLUS_PATH}
+				`lsdev | grep -i 'mei_me' >> ${BAR_PLUS_PATH}`
+
 				FILE=$(dialog \
 						--stdout \
 						--title 'Escolha a informação'  \
 						--fselect ${BAR_PATH} \
 						7 0)
+				if [ $? != $DIALOG_CANCEL ]
+				then
+					Show_File ${FILE}
+				fi
 				
-				Show_File ${FILE}
-				#Deixar mais legível o lsusb
-				# `lsusb -v | egrep '\<(Bus|iProduct|bDeviceClass|bDeviceProtocol)' >> ${BAR_PATH}`
-				# #Detalhes sobre IRQS
-				# echo 'Device	|	IRQ		|	Descrição:' >> ${BAR_PATH}
-				# `lsdev | grep -i 'amdgpu' >> ${BAR_PATH}`
-				# `lsdev | grep -i 'ath9k' >> ${BAR_PATH}` 
-				# `lsdev | grep -i 'rtc0' >> ${BAR_PATH}` 
-				# `lsdev | grep -i 'dmar0' >> ${BAR_PATH}`
-				# `lsdev | grep -i 'dmar1' >> ${BAR_PATH}`
-				# `lsdev | grep -i 'enp3s0' >> ${BAR_PATH}` 
-				# `lsdev | grep -i 'mei_me' >> ${BAR_PATH}`
-				# dialog \
-				# 	--title 'Barramento' \
-				# 	--textbox ${BAR_PATH} \
-				# 	0 0
+				
 				;;	  
 			4 )
 				`sudo lshw -C display > ${GRAPH_PATH}` 
@@ -638,10 +645,73 @@ Start_Program(){
 
 
 Show_File(){
-	dialog \
-		--stdout \
-		--title 'Informações do arquivo ${1}' \
-		--textbox ${1} \
-		0 0
+
+
+	if [ ${1} == ${AUDIO_PATH} ]
+	then
+		dialog \
+			--title 'Informações de Áudio' \
+			--textbox ${1} \
+			0 0
+	elif [ ${1} == ${USB_PATH} ]
+	then
+		dialog \
+			--title 'Informações de USB' \
+			--textbox ${1} \
+			0 0
+	elif [ ${1} == ${SATA_PATH} ]
+	then
+		dialog \
+			--title 'Informações de SATA' \
+			--textbox ${1} \
+			0 0
+	elif [ ${1} == ${PCI_PATH} ]
+	then
+		dialog \
+			--title 'Informações de PCI' \
+			--textbox ${1} \
+			0 0
+	elif [ ${1} == ${MEMORY_PATH} ]
+	then
+		dialog \
+			--title 'Informações de Memory' \
+			--textbox ${1} \
+			0 0
+	elif [ ${1} == ${DISPLAY_PATH} ]
+	then
+		dialog \
+			--title 'Informações de Display' \
+			--textbox ${1} \
+			0 0
+	elif [ ${1} == ${NET_PATH} ]
+	then
+		dialog \
+			--title 'Informações de Network' \
+			--textbox ${1} \
+			0 0
+	elif [ ${1} == ${ETH_PATH} ]
+	then
+		dialog \
+			--title 'Informações de Ethernet' \
+			--textbox ${1} \
+			0 0
+	elif [ ${1} == ${VGA_PATH} ]
+	then
+		dialog \
+			--title 'Informações de VGA' \
+			--textbox ${1} \
+			0 0
+	elif [ ${1} == ${BAR_PLUS_PATH} ]
+	then
+		dialog \
+			--title 'Informação de Interrupção' \
+			--textbox ${1} \
+			0 0
+	else
+		dialog \
+			--title 'Arquivo não encontrado' \
+			--msgbox 'Não foi possível encontrar o arquivo.' \
+			0 0
+	fi
 }
 Start_Program
