@@ -10,8 +10,18 @@ FULL_PATH="${BASE_PATH}/pi/"
 CPU_PATH="${FULL_PATH}info"
 CPU_PATH_AUX="${FULL_PATH}info-aux"
 MEM_PATH="${FULL_PATH}mem"
-BAR_PATH="${FULL_PATH}bar"
+BAR_PATH="${FULL_PATH}bar/"
+USB_PATH="${BAR_PATH}usb"
+SATA_PATH="${BAR_PATH}sata"
+PCI_PATH="${BAR_PATH}pci"
+MEMORY_PATH="${BAR_PATH}memory"
+DISPLAY_PATH="${BAR_PATH}display"
+NET_PATH="${BAR_PATH}net"
+ETH_PATH="${BAR_PATH}eth"
+VGA_PATH="${BAR_PATH}vga"
+AUDIO_PATH="${BAR_PATH}audio"
 QLQ_PATH="${FULL_PATH}lsdev"
+GRAPH_PATH="${FULL_PATH}graph"
 TCP_PATH="${FULL_PATH}dump"
 SQUID_PATH="${FULL_PATH}squid-pi"
 BLOCK_SITES="/etc/squid/sites_proibidos"
@@ -490,7 +500,7 @@ Menu_InfoComputer(){
 					--textbox ${CPU_PATH} \
 				0 0
 				;;
-			2 ) 
+			2 )
 				if [ -e ${MEM_PATH} ]
 				then
 					clear
@@ -506,35 +516,56 @@ Menu_InfoComputer(){
 				0 0
 				;;
 			3 ) 
-				if [ -e ${BAR_PATH} ]
+				if [ ! -d ${BAR_PATH} ]
 				then
 					clear
-					rm ${BAR_PATH}
+					mkdir ${BAR_PATH}
 				fi
 				#Versão dos USB`s
-				echo `cat /proc/devices | grep -i 'bcdusb'` >> ${BAR_PATH}
-				#Caso tenha um dispositivo motorola conectado a alguma USB exibe algumas informações
-				echo `cat /proc/devices` >> ${BAR_PATH}
+				# `cat /proc/devices | grep -i 'bcdusb' >> ${BAR_PATH}` 
+				# #Caso tenha um dispositivo motorola conectado a alguma USB exibe algumas informações
+				# `cat /proc/devices >> ${BAR_PATH}`
 				#Informações da placa de video
-				echo `lspci | grep -i 'VGA'` >> ${BAR_PATH}
+				`lspci | grep -i 'usb' > ${USB_PATH}`
+				`lspci | grep -i 'sata' > ${SATA_PATH}`
+				`lspci | grep -i 'pci' > ${PCI_PATH}`
+				`lspci | grep -i 'memory' > ${MEMORY_PATH}`
+				`lspci | grep -i 'display' > ${DISPLAY_PATH}`
+				`lspci | grep -i 'network' > ${NET_PATH}`
+				`lspci | grep -i 'ethernet' > ${ETH_PATH}`
+				`lspci | grep -i 'VGA' > ${VGA_PATH}`
 				#Detalhes da Fabricação do Audio
-				echo `lspci -v | grep -i 'audio'` >> ${BAR_PATH}
+				`lspci -v | grep -i 'audio'` > ${AUDIO_PATH}
+				FILE=$(dialog \
+						--stdout \
+						--title 'Escolha a informação'  \
+						--fselect ${BAR_PATH} \
+						7 0)
+				
+				Show_File ${FILE}
 				#Deixar mais legível o lsusb
-				echo `lsusb -v | egrep '\<(Bus|iProduct|bDeviceClass|bDeviceProtocol)'` >> ${BAR_PATH}
-				#Detalhes sobre IRQS
-				echo 'Device  IRQ      Descrição:' >> ${BAR_PATH}
-				echo `lsdev | grep -i 'amdgpu'` >> ${BAR_PATH}
-				echo `lsdev | grep -i 'ath9k'` >> ${BAR_PATH}
-				echo `lsdev | grep -i 'rtc0'` >> ${BAR_PATH}
-				echo `lsdev | grep -i 'dmar0'` >> ${BAR_PATH}
-				echo `lsdev | grep -i 'dmar1'` >> ${BAR_PATH}
-				echo `lsdev | grep -i 'enp3s0'` >> ${BAR_PATH}
-				echo `lsdev | grep -i 'mei_me'` >> ${BAR_PATH}
-				dialog \
-					--title 'Barramento' \
-					--textbox ${BAR_PATH} \
-					0 0
+				# `lsusb -v | egrep '\<(Bus|iProduct|bDeviceClass|bDeviceProtocol)' >> ${BAR_PATH}`
+				# #Detalhes sobre IRQS
+				# echo 'Device	|	IRQ		|	Descrição:' >> ${BAR_PATH}
+				# `lsdev | grep -i 'amdgpu' >> ${BAR_PATH}`
+				# `lsdev | grep -i 'ath9k' >> ${BAR_PATH}` 
+				# `lsdev | grep -i 'rtc0' >> ${BAR_PATH}` 
+				# `lsdev | grep -i 'dmar0' >> ${BAR_PATH}`
+				# `lsdev | grep -i 'dmar1' >> ${BAR_PATH}`
+				# `lsdev | grep -i 'enp3s0' >> ${BAR_PATH}` 
+				# `lsdev | grep -i 'mei_me' >> ${BAR_PATH}`
+				# dialog \
+				# 	--title 'Barramento' \
+				# 	--textbox ${BAR_PATH} \
+				# 	0 0
 				;;	  
+			4 )
+				`sudo lshw -C display > ${GRAPH_PATH}` 
+				dialog \
+					--title 'Informação Gráfica' \
+					--textbox ${GRAPH_PATH} \
+					0 0
+				;;
 			
 		esac
 		done			
@@ -544,7 +575,7 @@ Menu(){
 	if [ ! -d ${FULL_PATH} ]
 	then
 		clear
-			mkdir ${FULL_PATH}
+		mkdir ${FULL_PATH}
 	fi 
 
 	while true; do
@@ -605,4 +636,12 @@ Start_Program(){
 	return
 }
 
+
+Show_File(){
+	dialog \
+		--stdout \
+		--title 'Informações do arquivo ${1}' \
+		--textbox ${1} \
+		0 0
+}
 Start_Program
