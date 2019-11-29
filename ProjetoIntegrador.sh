@@ -496,10 +496,11 @@ Menu_ConfigServer(){
 				done
 				;;
 			3 ) 
-				if sudo tcpdump -i wlp2s0 -qntt -s0 -c5 > ${TCP_PATH}
+				echo $(date) > ${TCP_PATH}
+				if sudo tcpdump -i wlp2s0 -qntt -s0 -c10 >> ${TCP_PATH}
 				then
 					dialog \
-						--title "Ultimos 5 pacotes capturados:" \
+						--title "Ultimos 10 pacotes capturados:" \
 						--textbox ${TCP_PATH} \
 						0 0 
 				fi
