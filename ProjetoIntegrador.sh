@@ -7,6 +7,7 @@ WIDTH=0
 
 BASE_PATH=$HOME
 FULL_PATH="${BASE_PATH}/pi/"
+STATUS_UFW="${FULL_PATH}status"
 CPU_PATH="${FULL_PATH}info"
 CPU_PATH_AUX="${FULL_PATH}info-aux"
 MEM_PATH="${FULL_PATH}mem"
@@ -71,9 +72,8 @@ CreateSquidFile(){
 	acl Safe_ports port 777		# multiling http
 	acl CONNECT method CONNECT
 	#__Authorial__
-	acl block_sites url_regex -i "/etc/squid/sites_proibidos"
-	acl users proxy_auth "/etc/squid/users"
-	acl sites_users url_regex -i "/etc/squid/sites_permitidos"
+	acl block_sites url_regex -i '/etc/squid/sites_proibidos'
+	acl users proxy_auth '/etc/squid/users'
 	#---- http_access ----#
 	#__Default__
 	http_access deny !Safe_ports
@@ -82,7 +82,7 @@ CreateSquidFile(){
 	http_access deny manager
 	#__Authoral__
 	http_access deny block_sites
-	http_access allow users sites_users
+	http_access allow users all
 
 
 	#---- Others ----#
@@ -95,7 +95,7 @@ CreateSquidFile(){
 	http_access allow localhost
 
 	# And finally deny all other access to this proxy
-	http_access allow all
+	
 
 	# Squid normally listens to port 3128
 	http_port 3128
@@ -193,16 +193,18 @@ InputACL(){
 					--title 'Site para ser bloqueado na ACL.' \
 					--inputbox 'Digite o site:'\
 					0 0 )
-		echo "${INPUT}" >> /etc/squid/sites_proibidos
+
+		echo "${INPUT}" | sudo tee -a /etc/squid/sites_proibidos
+		CreateSquidFile
+		ConfigSquid
 	fi
 }
 #----Configurações----# 
 InstallPackages(){
-	STATUS_SQUID="$(dpkg -s squid3 | grep -i status)"
-	STATUS_APACHE="$(dpkg -s apache2 | grep -i status)"
-	STATUS_APACHE_UTILS="$(dpkg -s apache2-utils | grep -i status)"
-	STATUS_SARG="$(dpkg -s sarg | grep -i status)"
-	if [ ! "Status: install ok installed" == "$STATUS" ]
+	STATUS_SQUID="$(dpkg -s squid3 | grep -i 'status')"
+	STATUS_APACHE="$(dpkg -s apache2 | grep -i 'status')"
+	STATUS_APACHE_UTILS="$(dpkg -s apache2-utils | grep -i 'status')"
+	if [[ ! "Status: install ok installed" == *"$STATUS_SQUID"* ]]
 	then
 		`sudo apt install -y squid3`
 		dialog  \
@@ -210,20 +212,14 @@ InstallPackages(){
 			--msgbox 'Squid instalado com sucesso!'  \
 			0 0
 		clear
-		#InputACL
-		CreateSquidFile
-		ConfigSquid
 	else
 		dialog  \
 			--title 'Instalação'    \
 			--msgbox 'Squid já foi instalado.'  \
 			0 0
 		clear
-		#InputACL
-		CreateSquidFile
-		ConfigSquid
 	fi
-	if [ ! "Status: install ok installed" == "$STATUS_APACHE" ]
+	if [[ ! "Status: install ok installed" == *"$STATUS_APACHE"* ]]
 	then
 		`sudo apt install -y apache2`
 		dialog  \
@@ -236,7 +232,7 @@ InstallPackages(){
 			--msgbox 'Apache já foi instalado.'  \
 			0 0
 	fi
-	if [ ! "Status: install ok installed" == "$STATUS_APACHE_UTILS" ]
+	if [[ ! "Status: install ok installed" == *"$STATUS_APACHE_UTILS"* ]]
 	then
 		`sudo apt install -y apache2-utils`
 		dialog  \
@@ -249,19 +245,6 @@ InstallPackages(){
 			--msgbox 'Apache2-utils já foi instalado.'  \
 			0 0
 	fi
-	if [ ! "Status: install ok installed" == "$STATUS_SARG" ]
-	then
-		`sudo apt install -y sarg`
-		dialog  \
-			--title 'Instalação'    \
-			--msgbox 'Sarg instalado com sucesso!'  \
-			0 0
-	else
-		dialog  \
-			--title 'Instalação'    \
-			--msgbox 'Sarg já foi instalado.'  \
-			0 0
-	fi
 }
 
 ConfigSquid(){
@@ -272,10 +255,6 @@ ConfigSquid(){
 	then
 		`service squid restart`
 		`/etc/init.d/squid restart`
-		dialog  \
-			--title 'Aviso'    \
-			--msgbox 'SQUID Configurado com sucesso.'  \
-			0 0
 	else
 		dialog  \
 			--title 'Aviso'    \
@@ -419,36 +398,103 @@ Menu_ConfigServer(){
 		exec 3>&-
 		case $exit_status in
 			$DIALOG_CANCEL)
-			echo "MenuPrincipal."
 			return
 			;;
 		$DIALOG_ESC)
 			clear
-			echo "programa abortado.">&2
 			return
 			;;
 		esac
 		case $selection in
 			0 )
 				clear
-				echo "programa encerrado"
 				return
 				;;
 			1 )
 				clear
 				InstallPackages
+				InputACL
 				dialog  \
 					--title 'Aviso'    \
 					--msgbox 'Proxy configurado com sucesso.'  \
 					0 0
 				;;
 			2 ) 
-				#  iptables -t nat -A PREROUTING -s SUA_REDE_LOCAL/MASCARA -p tcp --dport 80 -j REDIRECT --to-port 3128
-				dialog 
-					--title 'Aviso' \
-					--textbox "Firewall configurado com sucesso."\
-					0 0
-			;;
+				while true; do
+					exec 3>&1
+					selection=$(dialog \
+						--title "Opcões" \
+						--cancel-label "Voltar" \
+						--menu "Selecione uma opção:" $HEIGHT $WIDTH 4 \
+						"1" "Status do Firewall" \
+						"2" "Ativar/Desativar o Firewall" \
+						"3" "Aplicar uma regra a uma porta" \
+						"4" "Listar Regras"	\
+						2>&1 1>&3)
+					exit_status=$?
+					exec 3>&-
+					case $exit_status in
+						$DIALOG_CANCEL)
+						echo "MenuPrincipal."
+						return
+						;;
+					$DIALOG_ESC)
+						clear
+						echo "programa abortado.">&2
+						return
+					esac
+					case $selection in
+						0 )
+							clear
+							return
+							;;
+						1 )
+							S=$(`sudo ufw status verbose > ${STATUS_UFW}`)
+							dialog 							\
+								--title 'Status do Firewall' \
+								--textbox ${STATUS_UFW} 		 \
+								0 0
+							;;
+						2 )
+							if grep -q "inactive" "$STATUS_UFW"
+							then
+								dialog	\
+									--title 'Aviso'	\
+									--yesno '\nDeseja ativar o firewall?\n'	\
+									0 0 \
+									&& `sudo ufw enable`
+									ShowEnableFW \
+									|| clear
+							elif grep -q "active" "$STATUS_UFW"
+							then
+								dialog	\
+									--title 'Aviso'	\
+									--yesno '\nDeseja desativar o firewall?\n'	\
+									0 0 \
+									&& `sudo ufw disable`
+									ShowDisableFW \
+									|| clear
+							else
+								dialog	\
+									--title 'Aviso' \
+									--msgbox 'UFW não instalado!'	\
+									0 0
+							fi
+							;;
+						3 )	
+							Menu_FW
+							;;
+						4 ) 
+							S=$(`sudo ufw status numbered > ${STATUS_UFW}`)
+							dialog 							\
+								--title 'Status do Firewall' \
+								--textbox ${STATUS_UFW} 		 \
+								0 0
+							;;
+
+					esac
+				done
+				;;
 			3 ) 
 				if sudo tcpdump -i wlp2s0 -qntt -s0 -c5 > ${TCP_PATH}
 				then
@@ -457,9 +503,56 @@ Menu_ConfigServer(){
 						--textbox ${TCP_PATH} \
 						0 0 
 				fi
-			;;	
+				;;	
 		esac
 		done			
+}
+
+Menu_FW(){
+	while true; do
+		exec 3>&1
+		selection=$(dialog \
+			--backtitle "Configuração do Firewall" \
+			--title "Opcões" \
+			--cancel-label "Voltar" \
+			--menu "Selecione uma opção:" $HEIGHT $WIDTH 2 \
+			"1" "Allow" \
+			"2" "Deny" \
+			2>&1 1>&3)
+		exit_status=$?
+		exec 3>&-
+		case $exit_status in
+			$DIALOG_CANCEL)
+			clear
+			return
+			;;
+		$DIALOG_ESC)
+			clear
+			return
+			;;
+		esac
+		case $selection in
+			0 )
+				return
+				;;
+			1 )
+				port=$(dialog --stdout --inputbox 'Digite [<porta>/<opcional: protocolo>]:' 0 0 )
+				`sudo ufw allow ${port}`
+				dialog	\
+					--title 'Aviso' \
+					--msgbox 'Regra ativada!'	\
+					0 0
+				;;
+			2 )
+				port=$(dialog --stdout --inputbox 'Digite [<porta>/<opcional: protocolo>]:' 0 0 )
+				`sudo ufw deny ${port}`
+				dialog	\
+					--title 'Aviso' \
+					--msgbox 'Regra ativada!'	\
+					0 0
+				;;
+		esac
+	done
 }
 
 Menu_InfoComputer(){
@@ -632,7 +725,7 @@ Menu(){
 		esac
     done		
 }
-#----Tela inicial----#
+#----Telas----#
 Start_Program(){
 	dialog	\
 	--title 'ATENÇÂO!'	\
@@ -642,7 +735,6 @@ Start_Program(){
 	|| clear
 	return
 }
-
 
 Show_File(){
 
@@ -714,4 +806,19 @@ Show_File(){
 			0 0
 	fi
 }
+
+ShowDisableFW(){
+	dialog	\
+		--title 'Aviso' \
+		--msgbox 'Desativado!'	\
+		0 0
+}
+
+ShowEnableFW(){
+	dialog	\
+		--title 'Aviso' \
+		--msgbox 'Ativado!'	\
+		0 0
+}
+
 Start_Program
